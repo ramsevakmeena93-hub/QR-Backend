@@ -54,11 +54,16 @@ router.post('/generate', authenticate, authorize('teacher'), async (req, res) =>
 
     await qrSession.save();
 
-    // Generate QR code
+    // Generate QR code — embed classroom location if teacher provided it
     const qrData = JSON.stringify({
       token,
       classId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      // Teacher's classroom GPS coordinates (sent from frontend)
+      ...(req.body.lat && req.body.lng ? {
+        lat: parseFloat(req.body.lat),
+        lng: parseFloat(req.body.lng)
+      } : {})
     });
 
     const qrCodeUrl = await QRCode.toDataURL(qrData);

@@ -225,7 +225,25 @@ const ClassCard = ({ classData }) => {
   const generateQR = async () => {
     setLoading(true);
     try {
-      const response = await axios.post('/api/qr/generate', { classId: classData._id });
+      // Get teacher's current classroom location for geo-fencing
+      let lat = null, lng = null;
+      try {
+        const pos = await new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true, timeout: 8000, maximumAge: 0
+          })
+        );
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+        toast.info(`📍 Classroom location set (${lat.toFixed(4)}, ${lng.toFixed(4)})`, { autoClose: 2000 });
+      } catch {
+        toast.warning('📍 Location not available — QR will work without geo-fencing', { autoClose: 3000 });
+      }
+
+      const response = await axios.post('/api/qr/generate', {
+        classId: classData._id,
+        ...(lat && lng ? { lat, lng } : {})
+      });
       setQrCode(response.data.qrCode);
       // sessionId stored in response but used for live attendance polling
       const sid = response.data.sessionId;

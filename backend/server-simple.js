@@ -377,7 +377,7 @@ app.get('/api/student/attendance', (req, res) => {
 
 // QR routes
 app.post('/api/qr/generate', async (req, res) => {
-  const { classId } = req.body;
+  const { classId, lat, lng } = req.body;
   
   const classData = classes.find(c => c._id === classId);
   if (!classData) {
@@ -387,7 +387,7 @@ app.post('/api/qr/generate', async (req, res) => {
   // Create QR session with 8 second expiry
   const sessionId = Date.now().toString();
   const token = 'QR-' + sessionId;
-  const expiresAt = new Date(Date.now() + 8000); // 8 seconds
+  const expiresAt = new Date(Date.now() + 8000);
   
   const qrSession = {
     _id: sessionId,
@@ -401,31 +401,26 @@ app.post('/api/qr/generate', async (req, res) => {
   
   qrSessions.push(qrSession);
   
-  // Auto-deactivate after 8 seconds
   setTimeout(() => {
     const session = qrSessions.find(s => s._id === sessionId);
-    if (session) {
-      session.isActive = false;
-    }
+    if (session) session.isActive = false;
   }, 8000);
   
-  // Generate QR code data
-  const qrData = JSON.stringify({
+  // Embed classroom GPS location in QR if teacher provided it
+  const qrPayload = {
     token: token,
     classId: classId,
     className: classData.name,
-    timestamp: Date.now()
-  });
+    timestamp: Date.now(),
+    ...(lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : {})
+  };
+  
+  const qrData = JSON.stringify(qrPayload);
   
   try {
-    // Generate actual QR code as base64 image
     const qrCodeImage = await QRCode.toDataURL(qrData, {
-      width: 300,
-      margin: 2,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
+      width: 300, margin: 2,
+      color: { dark: '#000000', light: '#FFFFFF' }
     });
     
     res.json({
@@ -434,7 +429,8 @@ app.post('/api/qr/generate', async (req, res) => {
       qrData: qrData,
       sessionId: sessionId,
       expiresAt: expiresAt,
-      expirySeconds: 8
+      expirySeconds: 8,
+      geoFenced: !!(lat && lng)
     });
   } catch (error) {
     res.status(500).json({ message: 'Failed to generate QR code' });
