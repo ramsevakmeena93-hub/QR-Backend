@@ -24,6 +24,7 @@ const Sidebar = ({ role }) => {
           { path: '/teacher/classes', icon: FiGrid, label: 'My Classes' },
           { path: '/teacher/analytics', icon: FiTrendingUp, label: 'Analytics' },
           { path: '/teacher/reports', icon: FiBarChart2, label: 'Exam Reports' },
+          { path: '/teacher/logs', icon: FiBarChart2, label: 'Activity Log' },
         ];
       case 'student':
         return [

@@ -58,94 +58,33 @@ function logActivity({ userId, userName, userEmail, userRole, action, details, m
   return log;
 }
 const subjects = [
-  { _id: '1', name: 'Data Structures', code: '34251201', department: 'CSE', credits: 4, description: 'Core subject' },
-  { _id: '2', name: 'Object Oriented Programming', code: '34251202', department: 'CSE', credits: 4, description: 'Core subject' },
-  { _id: '3', name: 'Discrete Structures', code: '34251203', department: 'CSE', credits: 4, description: 'Core subject' },
-  { _id: '4', name: 'Probability and Random Processes', code: '34251204', department: 'CSE', credits: 4, description: 'Core subject' },
-  { _id: '5', name: 'Basic Electrical & Electronics Engineering', code: '34251205', department: 'CSE', credits: 3, description: 'Core subject' },
-  { _id: '6', name: 'Data Structures Lab', code: '34251206', department: 'CSE', credits: 2, description: 'Lab subject' },
-  { _id: '7', name: 'Object Oriented Programmings Lab', code: '34251207', department: 'CSE', credits: 2, description: 'Lab subject' },
-  { _id: '8', name: 'Electrical & Electronics Engineering Lab', code: '34251208', department: 'CSE', credits: 2, description: 'Lab subject' },
-  { _id: '9', name: 'Semester Proficiency', code: '34251209', department: 'CSE', credits: 1, description: 'Proficiency' },
-  { _id: '10', name: 'Micro Project-II', code: '34251210', department: 'CSE', credits: 2, description: 'Project' },
-  { _id: '11', name: 'Sustainability & Environmental Science', code: '34251211', department: 'CSE', credits: 3, description: 'Core subject' }
+  { _id: '1', name: 'Data Structures', code: '34251201', department: 'CST', credits: 4 },
+  { _id: '2', name: 'Object Oriented Programming', code: '34251202', department: 'CST', credits: 4 },
+  { _id: '3', name: 'Discrete Structures', code: '34251203', department: 'CST', credits: 4 },
+  { _id: '4', name: 'Probability and Random Processes', code: '34251204', department: 'CST', credits: 4 },
+  { _id: '5', name: 'Basic Electrical & Electronics Engineering', code: '34251205', department: 'CST', credits: 3 },
+  { _id: '6', name: 'Data Structures Lab', code: '34251206', department: 'CST', credits: 2 },
+  { _id: '7', name: 'Object Oriented Programmings Lab', code: '34251207', department: 'CST', credits: 2 },
+  { _id: '8', name: 'Electrical & Electronics Engineering Lab', code: '34251208', department: 'CST', credits: 2 },
+  { _id: '9', name: 'Semester Proficiency', code: '34251209', department: 'CST', credits: 1 },
+  { _id: '10', name: 'Micro Project-II', code: '34251210', department: 'CST', credits: 2 },
+  { _id: '11', name: 'Sustainability & Environmental Science', code: '34251211', department: 'CST', credits: 3 }
 ];
 
-// Initialize demo classes and attendance for testing
-function initializeDemoData() {
-  // Get all students
-  const allStudents = users.filter(u => u.role === 'student').map(s => s.id);
-  
-  // Create demo classes for first 6 subjects
-  const demoClasses = [
-    { subjectId: '1', code: 'DS101', teacher: 'T10', faculty: 'Dr. Shradha Dubey' },
-    { subjectId: '2', code: 'OOP101', teacher: 'T2', faculty: 'Dr. Tejaswita Mishra' },
-    { subjectId: '3', code: 'DISC101', teacher: 'T3', faculty: 'Dr. Kuldeep Tiwari' },
-    { subjectId: '4', code: 'PROB101', teacher: 'T3', faculty: 'Dr. Kuldeep Tiwari' },
-    { subjectId: '10', code: 'MP101', teacher: 'T4', faculty: 'Dr. Gulshan Som' },
-    { subjectId: '5', code: 'EEE101', teacher: 'T1', faculty: 'Dr. Devanshu Tiwari' }
-  ];
-
-  demoClasses.forEach((demo, index) => {
-    const subject = subjects.find(s => s._id === demo.subjectId);
-    const classId = `class-${index + 1}`;
-    
-    classes.push({
-      _id: classId,
-      name: `${subject.name} - Sem 2`,
-      code: demo.code,
-      subject: subject,
-      teacher: demo.teacher,
-      faculty: demo.faculty,
-      department: 'CST',
-      semester: 2,
-      academicYear: '2025-26',
-      students: allStudents,
-      createdAt: new Date()
-    });
-
-    // Create demo attendance records (simulate different attendance percentages)
-    const attendanceRates = [0.813, 0.80, 0.70, 0.823, 0.667, 0.75]; // Different percentages
-    const totalSessions = [16, 15, 17, 17, 6, 12];
-    
-    allStudents.forEach(studentId => {
-      const sessionsToAttend = Math.floor(totalSessions[index] * attendanceRates[index]);
-      
-      for (let i = 0; i < sessionsToAttend; i++) {
-        attendance.push({
-          _id: `att-${classId}-${studentId}-${i}`,
-          student: studentId,
-          class: classId,
-          qrSession: `session-${classId}-${i}`,
-          status: 'present',
-          markedAt: new Date(Date.now() - (i * 24 * 60 * 60 * 1000)) // Past dates
-        });
-      }
-    });
-
-    // Create QR sessions for total sessions
-    for (let i = 0; i < totalSessions[index]; i++) {
-      qrSessions.push({
-        _id: `session-${classId}-${i}`,
-        class: classId,
-        token: `QR-${classId}-${i}`,
-        expiresAt: new Date(Date.now() - (i * 24 * 60 * 60 * 1000)),
-        isActive: false,
-        attendanceCount: Math.floor(allStudents.length * attendanceRates[index]),
-        createdAt: new Date(Date.now() - (i * 24 * 60 * 60 * 1000))
-      });
-    }
-  });
-
-  console.log(`✅ Demo data initialized: ${classes.length} classes, ${attendance.length} attendance records`);
-}
-
-// Initialize demo data on server start
-initializeDemoData();
+// No demo data — all data is real (created by teachers/admin)
+console.log(`✅ Server initialized: ${users.length} users, ${subjects.length} subjects loaded`);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running (Demo Mode - No Database)' });
+  res.json({ 
+    status: 'OK', 
+    message: 'MITS Attendance System API is running',
+    college: 'Madhav Institute of Technology & Science',
+    users: users.length,
+    subjects: subjects.length,
+    classes: classes.length,
+    attendance: attendance.length
+  });
 });
 
 // Auth routes
@@ -595,8 +534,14 @@ app.get('/api/logs/stats', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
+  console.log('');
+  console.log('═══════════════════════════════════════════════════');
+  console.log('🎓 MADHAV INSTITUTE OF TECHNOLOGY & SCIENCE');
+  console.log('📱 QR Code Based Attendance Management System');
+  console.log('═══════════════════════════════════════════════════');
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`⚠️  DEMO MODE: Running without database`);
-  console.log(`📝 Note: Data will not persist. This is for testing the UI only.`);
-  console.log(`✅ Frontend will work at: http://localhost:3000`);
+  console.log(`👥 Users loaded: ${users.length} (real data)`);
+  console.log(`📚 Subjects: ${subjects.length}`);
+  console.log(`✅ No dummy data — system is clean`);
+  console.log('═══════════════════════════════════════════════════');
 });

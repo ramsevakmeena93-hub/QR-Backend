@@ -18,6 +18,7 @@ const BRANCH_MAP = {
 };
 
 const FACULTY_EMAILS = ['ramsevakmeena93@gmail.com'];
+const ADMIN_EMAILS = ['am9303386187@gmail.com'];
 const STUDENT_DOMAIN = 'mitsgwl.ac.in';
 
 function parseStudentEmail(email) {
@@ -47,6 +48,14 @@ const Login = () => {
     try {
       const decoded = jwtDecode(credentialResponse.credential);
       const { email, name, picture } = decoded;
+
+      // Admin check
+      if (ADMIN_EMAILS.includes(email.toLowerCase())) {
+        setGoogleUser({ id: email, name, email, picture, role: 'admin', department: 'Administration', loginMethod: 'google' });
+        toast.success(`Welcome, ${name}! Logged in as Admin.`);
+        navigate('/admin');
+        return;
+      }
 
       // Faculty check
       if (FACULTY_EMAILS.includes(email.toLowerCase())) {
