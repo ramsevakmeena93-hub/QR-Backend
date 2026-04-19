@@ -40,7 +40,12 @@
       "last 1 safari version"
     ]
   },
-  "keywords": ["attendance", "react", "education", "mits"],
+  "keywords": [
+    "attendance",
+    "react",
+    "education",
+    "mits"
+  ],
   "author": "Ajay Meena",
   "license": "MIT"
 }
