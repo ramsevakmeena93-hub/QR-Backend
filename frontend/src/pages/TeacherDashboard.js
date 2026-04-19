@@ -225,7 +225,7 @@ const ClassCard = ({ classData }) => {
   const generateQR = async () => {
     setLoading(true);
     try {
-      // Get teacher's current classroom location for geo-fencing
+      // Get teacher's current classroom location for geo-fencing (MANDATORY)
       let lat = null, lng = null;
       try {
         const pos = await new Promise((resolve, reject) =>
@@ -235,7 +235,7 @@ const ClassCard = ({ classData }) => {
         );
         lat = pos.coords.latitude;
         lng = pos.coords.longitude;
-        toast.info(`📍 Classroom location set (${lat.toFixed(4)}, ${lng.toFixed(4)})`, { autoClose: 2000 });
+        toast.info(`📍 Classroom location captured`, { autoClose: 2000 });
       } catch {
         toast.warning('📍 Location not available — QR will work without geo-fencing', { autoClose: 3000 });
       }
