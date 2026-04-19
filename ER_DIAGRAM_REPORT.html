@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: 'Times New Roman', serif; margin: 60px; color: #000; font-size: 12pt; }
+  h1 { text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 4px; }
+  h2 { font-size: 13pt; font-weight: bold; margin-top: 20px; border-bottom: 1px solid #000; padding-bottom: 4px; }
+  h3 { font-size: 12pt; font-weight: bold; margin-top: 14px; }
+  .center { text-align: center; }
+  .subtitle { text-align: center; font-size: 11pt; margin-bottom: 20px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 11pt; }
+  th { background-color: #1e3a5f; color: white; padding: 7px 10px; text-align: left; }
+  td { border: 1px solid #999; padding: 6px 10px; }
+  tr:nth-child(even) { background-color: #f2f2f2; }
+  pre { font-family: 'Courier New', monospace; font-size: 9pt; background: #f5f5f5;
+        border: 1px solid #ccc; padding: 12px; line-height: 1.4; white-space: pre; }
+  .box { border: 2px solid #1e3a5f; padding: 10px 16px; margin: 10px 0; background: #eef3fb; }
+  .rule { background: #fff8e1; border-left: 4px solid #f0a500; padding: 6px 12px; margin: 6px 0; }
+  hr { border: 1px solid #1e3a5f; margin: 20px 0; }
+  .footer { text-align: center; font-size: 10pt; color: #555; margin-top: 40px; border-top: 1px solid #ccc; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>ER Diagram &amp; Database Schema</h1>
+<p class="subtitle">
+  <b>Project:</b> QR Code Based Attendance Management System<br>
+  <b>Institution:</b> Madhav Institute of Technology &amp; Science (MITS), Gwalior<br>
+  <b>Department:</b> Computer Science &amp; Technology (CST)<br>
+  <b>Developer:</b> Ajay Meena
+</p>
+
+<hr>
+
+<h2>1. Overview</h2>
+<p>
+The system uses <b>MongoDB</b> as its database with <b>8 collections</b>. Each collection represents a core entity of the attendance management system. The database name is <b>mits-attendance</b>.
+</p>
+
+<div class="box">
+  <b>Collections:</b> User &nbsp;|&nbsp; Subject &nbsp;|&nbsp; Class &nbsp;|&nbsp; QRSession &nbsp;|&nbsp; Attendance &nbsp;|&nbsp; ClassMaterial &nbsp;|&nbsp; StudentMarks &nbsp;|&nbsp; Feedback
+</div>
+
+<hr>
+
+<h2>2. ER Diagram</h2>
+
+<pre>
+  ┌─────────────┐          ┌──────────────────────┐          ┌──────────────────┐
+  │   SUBJECT   │──1:N────►│        CLASS         │──1:N────►│   QRSESSION      │
+  │─────────────│          │──────────────────────│          │──────────────────│
+  │ _id  (PK)   │          │ _id  (PK)            │          │ _id  (PK)        │
+  │ name        │          │ name                 │          │ class_id  (FK)   │
+  │ code        │          │ code                 │          │ teacher_id (FK)  │
+  │ department  │          │ subject_id  (FK)     │          │ token            │
+  │ credits     │          │ teacher_id  (FK)     │          │ expiresAt        │
+  └─────────────┘          │ students[]  (FK)     │          │ generatedDate    │
+                           │ semester             │          │ isActive         │
+                           └──────────────────────┘          └──────────────────┘
+                                      │                               │
+                                    1:N                             1:N
+                       ┌─────────────┼─────────────┐                 │
+                       ▼             ▼             ▼                 ▼
+              ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐
+              │CLASSMATERIAL │ │STUDENTMARKS  │ │     ATTENDANCE       │
+              │──────────────│ │──────────────│ │──────────────────────│
+              │ _id (PK)     │ │ _id (PK)     │ │ _id (PK)             │
+              │ class_id(FK) │ │ class_id(FK) │ │ student_id (FK)      │
+              │ teacher_id   │ │ student_id   │ │ class_id   (FK)      │
+              │ title        │ │ teacher_id   │ │ qrsession_id (FK)    │
+              │ type         │ │ marksObtained│ │ status               │
+              │ fileUrl      │ │ totalMarks   │ │ attendanceDate       │
+              └──────────────┘ │ grade (auto) │ │ markedBy             │
+                               └──────────────┘ └──────────────────────┘
+                                                          │
+                                                        1:1
+                                                          ▼
+                                                 ┌──────────────────┐
+                                                 │    FEEDBACK      │
+                                                 │──────────────────│
+                                                 │ _id (PK)         │
+                                                 │ class_id  (FK)   │
+                                                 │ student_id (FK)  │
+                                                 │ teacher_id (FK)  │
+                                                 │ teachingQuality  │
+                                                 │ contentClarity   │
+                                                 │ classroomEnv     │
+                                                 │ overallRating    │
+                                                 │ isAnonymous      │
+                                                 └──────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                            USER                                  │
+  │  _id (PK) │ name │ email (UQ) │ password │ role                 │
+  │  role: admin / teacher / student                                 │
+  │  rollNumber (students only, UQ)                                  │
+  │  employeeId (teachers only, UQ)                                  │
+  │  Connects to → CLASS, ATTENDANCE, FEEDBACK, MARKS, MATERIALS     │
+  └──────────────────────────────────────────────────────────────────┘
+</pre>
+
+<hr>
+
+<h2>3. Entity Relationships</h2>
+
+<table>
+  <tr><th>Entity A</th><th>Relationship</th><th>Entity B</th><th>Description</th></tr>
+  <tr><td>Subject</td><td>1 : N</td><td>Class</td><td>One subject can have many classes</td></tr>
+  <tr><td>User (Teacher)</td><td>1 : N</td><td>Class</td><td>One teacher teaches many classes</td></tr>
+  <tr><td>User (Student)</td><td>M : N</td><td>Class</td><td>Students enrolled in multiple classes</td></tr>
+  <tr><td>Class</td><td>1 : N</td><td>QRSession</td><td>One class has many QR sessions</td></tr>
+  <tr><td>QRSession</td><td>1 : N</td><td>Attendance</td><td>One QR session marks many students</td></tr>
+  <tr><td>Class</td><td>1 : N</td><td>ClassMaterial</td><td>One class has many uploaded materials</td></tr>
+  <tr><td>Class</td><td>1 : N</td><td>StudentMarks</td><td>One class has many mark entries</td></tr>
+  <tr><td>Attendance</td><td>1 : 1</td><td>Feedback</td><td>Feedback submitted after attendance</td></tr>
+</table>
+
+<hr>
+
+<h2>4. Collection Schemas</h2>
+
+<h3>4.1 USER</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+  <tr><td>_id</td><td>ObjectId</td><td>Primary Key</td><td>Auto-generated</td></tr>
+  <tr><td>name</td><td>String</td><td>Required</td><td>Full name</td></tr>
+  <tr><td>email</td><td>String</td><td>Required, Unique</td><td>Login email</td></tr>
+  <tr><td>password</td><td>String</td><td>Required</td><td>bcrypt hashed</td></tr>
+  <tr><td>role</td><td>Enum</td><td>Required</td><td>admin / teacher / student</td></tr>
+  <tr><td>department</td><td>String</td><td>Conditional</td><td>Required if not admin</td></tr>
+  <tr><td>rollNumber</td><td>String</td><td>Unique, Sparse</td><td>Students only (BTTC25O1XXX)</td></tr>
+  <tr><td>employeeId</td><td>String</td><td>Unique, Sparse</td><td>Teachers only</td></tr>
+  <tr><td>classes</td><td>ObjectId[]</td><td>FK → Class</td><td>Enrolled/teaching classes</td></tr>
+</table>
+
+<h3>4.2 SUBJECT</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+  <tr><td>_id</td><td>ObjectId</td><td>Primary Key</td><td>Auto-generated</td></tr>
+  <tr><td>name</td><td>String</td><td>Required</td><td>Subject full name</td></tr>
+  <tr><td>code</td><td>String</td><td>Required, Unique</td><td>e.g., 34251201</td></tr>
+  <tr><td>department</td><td>String</td><td>Required</td><td>e.g., CST</td></tr>
+  <tr><td>credits</td><td>Number</td><td>Required</td><td>Credit hours (1–4)</td></tr>
+</table>
+
+<h3>4.3 CLASS</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+  <tr><td>_id</td><td>ObjectId</td><td>Primary Key</td><td>Auto-generated</td></tr>
+  <tr><td>name</td><td>String</td><td>Required</td><td>Class display name</td></tr>
+  <tr><td>code</td><td>String</td><td>Required, Unique</td><td>e.g., DS101</td></tr>
+  <tr><td>subject</td><td>ObjectId</td><td>FK → Subject</td><td>Subject reference</td></tr>
+  <tr><td>teacher</td><td>ObjectId</td><td>FK → User</td><td>Assigned teacher</td></tr>
+  <tr><td>students</td><td>ObjectId[]</td><td>FK → User[]</td><td>Enrolled students</td></tr>
+  <tr><td>semester</td><td>Number</td><td>Required</td><td>Semester number</td></tr>
+  <tr><td>academicYear</td><td>String</td><td>Required</td><td>e.g., 2024-25</td></tr>
+</table>
+
+<h3>4.4 QRSESSION</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+  <tr><td>_id</td><td>ObjectId</td><td>Primary Key</td><td>Auto-generated</td></tr>
+  <tr><td>class</td><td>ObjectId</td><td>FK → Class</td><td>Class reference</td></tr>
+  <tr><td>teacher</td><td>ObjectId</td><td>FK → User</td><td>Teacher who generated</td></tr>
+  <tr><td>token</td><td>String</td><td>Required, Unique</td><td>UUID token in QR code</td></tr>
+  <tr><td>expiresAt</td><td>Date</td><td>TTL Index</td><td>Auto-deletes after 8 seconds</td></tr>
+  <tr><td>generatedDate</td><td>String</td><td>Required</td><td>YYYY-MM-DD (tracks 3/day limit)</td></tr>
+  <tr><td>isActive</td><td>Boolean</td><td>Default: true</td><td>Whether QR is valid</td></tr>
+  <tr><td>attendanceCount</td><td>Number</td><td>Default: 0</td><td>Students who scanned</td></tr>
+</table>
+
+<h3>4.5 ATTENDANCE</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+  <tr><td>_id</td><td>ObjectId</td><td>Primary Key</td><td>Auto-generated</td></tr>
+  <tr><td>student</td><td>ObjectId</td><td>FK → User</td><td>Student reference</td></tr>
+  <tr><td>class</td><td>ObjectId</td><td>FK → Class</td><td>Class reference</td></tr>
+  <tr><td>qrSession</td><td>ObjectId</td><td>FK → QRSession</td><td>Optional (null if manual)</td></tr>
+  <tr><td>status</td><td>Enum</td><td>Required</td><td>present / absent / late</td></tr>
+  <tr><td>attendanceDate</td><td>String</td><td>Required</td><td>YYYY-MM-DD format</td></tr>
+  <tr><td>markedBy</td><td>Enum</td><td>Default: qr</td><td>qr / manual</td></tr>
+  <tr><td>location</td><td>Object</td><td>Optional</td><td>latitude, longitude</td></tr>
+</table>
+
+<h3>4.6 CLASSMATERIAL</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+  <tr><td>_id</td><td>ObjectId</td><td>Primary Key</td><td>Auto-generated</td></tr>
+  <tr><td>class</td><td>ObjectId</td><td>FK → Class</td><td>Class reference</td></tr>
+  <tr><td>teacher</td><td>ObjectId</td><td>FK → User</td><td>Uploader</td></tr>
+  <tr><td>title</td><td>String</td><td>Required</td><td>Material title</td></tr>
+  <tr><td>type</td><td>Enum</td><td>Default: notes</td><td>notes / assignment / syllabus / reference</td></tr>
+  <tr><td>fileUrl</td><td>String</td><td>Optional</td><td>Download URL</td></tr>
+</table>
+
+<h3>4.7 STUDENTMARKS</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+  <tr><td>_id</td><td>ObjectId</td><td>Primary Key</td><td>Auto-generated</td></tr>
+  <tr><td>class</td><td>ObjectId</td><td>FK → Class</td><td>Class reference</td></tr>
+  <tr><td>student</td><td>ObjectId</td><td>FK → User</td><td>Student reference</td></tr>
+  <tr><td>teacher</td><td>ObjectId</td><td>FK → User</td><td>Teacher who entered</td></tr>
+  <tr><td>examType</td><td>Enum</td><td>Required</td><td>quiz / midterm / final / practical</td></tr>
+  <tr><td>marksObtained</td><td>Number</td><td>Required</td><td>Marks scored</td></tr>
+  <tr><td>totalMarks</td><td>Number</td><td>Required</td><td>Maximum marks</td></tr>
+  <tr><td>percentage</td><td>Number</td><td>Auto-calculated</td><td>(obtained ÷ total) × 100</td></tr>
+  <tr><td>grade</td><td>String</td><td>Auto-calculated</td><td>A+ / A / B+ / B / C / D / F</td></tr>
+</table>
+
+<h3>4.8 FEEDBACK</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+  <tr><td>_id</td><td>ObjectId</td><td>Primary Key</td><td>Auto-generated</td></tr>
+  <tr><td>class</td><td>ObjectId</td><td>FK → Class</td><td>Class reference</td></tr>
+  <tr><td>student</td><td>ObjectId</td><td>FK → User</td><td>Student reference</td></tr>
+  <tr><td>teacher</td><td>ObjectId</td><td>FK → User</td><td>Teacher reference</td></tr>
+  <tr><td>teachingQuality</td><td>Number (1–5)</td><td>Required</td><td>Star rating</td></tr>
+  <tr><td>contentClarity</td><td>Number (1–5)</td><td>Required</td><td>Star rating</td></tr>
+  <tr><td>classroomEnvironment</td><td>Number (1–5)</td><td>Required</td><td>Star rating</td></tr>
+  <tr><td>overallRating</td><td>Number</td><td>Auto-calculated</td><td>Average of 3 ratings</td></tr>
+  <tr><td>isAnonymous</td><td>Boolean</td><td>Default: false</td><td>Hide student identity</td></tr>
+</table>
+
+<hr>
+
+<h2>5. Key Business Rules</h2>
+
+<div class="rule">&#9654; Maximum <b>3 QR codes per day</b> per class — tracked by <code>generatedDate</code> field</div>
+<div class="rule">&#9654; <b>No duplicate attendance</b> per student per date — enforced by unique index on (student + class + date)</div>
+<div class="rule">&#9654; <b>QR auto-expires</b> after 8 seconds — TTL index on <code>expiresAt</code></div>
+<div class="rule">&#9654; <b>Auto grade calculation</b>: ≥90%→A+ | ≥80%→A | ≥70%→B+ | ≥60%→B | ≥50%→C | ≥40%→D | &lt;40%→F</div>
+<div class="rule">&#9654; <b>Passwords</b> are bcrypt hashed with salt rounds = 10</div>
+<div class="rule">&#9654; <b>Anonymous feedback</b> option hides student identity from teacher</div>
+<div class="rule">&#9654; <b>Manual vs QR attendance</b> distinguished by <code>markedBy</code> field</div>
+
+<hr>
+
+<h2>6. Database Statistics</h2>
+<table>
+  <tr><th>Collection</th><th>Demo Records</th><th>Key Constraint</th></tr>
+  <tr><td>users</td><td>82</td><td>email unique, rollNumber unique</td></tr>
+  <tr><td>subjects</td><td>11</td><td>code unique</td></tr>
+  <tr><td>classes</td><td>6</td><td>code unique</td></tr>
+  <tr><td>qrsessions</td><td>Dynamic</td><td>token unique, TTL on expiresAt</td></tr>
+  <tr><td>attendances</td><td>4,526</td><td>(student + class + date) unique</td></tr>
+  <tr><td>classmaterials</td><td>Dynamic</td><td>—</td></tr>
+  <tr><td>studentmarks</td><td>Dynamic</td><td>—</td></tr>
+  <tr><td>feedbacks</td><td>Dynamic</td><td>—</td></tr>
+</table>
+
+<div class="footer">
+  <b>Developer:</b> Ajay Meena &nbsp;|&nbsp;
+  <b>Institution:</b> Madhav Institute of Technology &amp; Science (MITS), Gwalior &nbsp;|&nbsp;
+  <b>Department:</b> CST &nbsp;|&nbsp;
+  <b>Database:</b> MongoDB (mits-attendance)
+</div>
+
+</body>
+</html>

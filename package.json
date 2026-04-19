@@ -1,0 +1,36 @@
+{
+  "name": "qr-attendance-system",
+  "version": "1.0.0",
+  "description": "Full-stack QR Code Based Attendance System",
+  "main": "backend/server-simple.js",
+  "scripts": {
+    "start": "node backend/server-simple.js",
+    "dev": "nodemon backend/server-simple.js",
+    "client": "cd frontend && npm start",
+    "install-all": "npm install && cd frontend && npm install"
+  },
+  "keywords": [
+    "attendance",
+    "qr-code",
+    "college"
+  ],
+  "author": "Ajay Meena",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.6.3",
+    "qrcode": "^1.5.4",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
