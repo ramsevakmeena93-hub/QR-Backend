@@ -59,6 +59,21 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // Track logout before clearing user
+    try {
+      const userStr = localStorage.getItem('token') ? null : localStorage.getItem('googleUser');
+      const u = userStr ? JSON.parse(userStr) : null;
+      if (u) {
+        axios.post('/api/logs/track', {
+          userId: u.email || u.id,
+          userName: u.name,
+          userEmail: u.email,
+          userRole: u.role,
+          action: 'LOGOUT',
+          details: `${u.name} logged out`
+        });
+      }
+    } catch {}
     localStorage.removeItem('token');
     localStorage.removeItem('googleUser');
     delete axios.defaults.headers.common['Authorization'];
@@ -69,6 +84,18 @@ export const AuthProvider = ({ children }) => {
   const setGoogleUser = (googleUserData) => {
     localStorage.setItem('googleUser', JSON.stringify(googleUserData));
     setUser(googleUserData);
+    // Track login
+    try {
+      axios.post('/api/logs/track', {
+        userId: googleUserData.email,
+        userName: googleUserData.name,
+        userEmail: googleUserData.email,
+        userRole: googleUserData.role,
+        action: 'LOGIN',
+        details: `${googleUserData.name} logged in via Google as ${googleUserData.role}`,
+        metadata: { method: 'google', role: googleUserData.role }
+      });
+    } catch {}
   };
 
   return (

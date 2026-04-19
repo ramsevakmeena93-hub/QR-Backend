@@ -38,6 +38,25 @@ const users = require('./users-data');
 const classes = [];
 const attendance = [];
 const qrSessions = [];
+const activityLogs = []; // Activity log storage
+
+// ─── Activity Logger Helper ───────────────────────────────────────────────────
+function logActivity({ userId, userName, userEmail, userRole, action, details, metadata = {}, req = null }) {
+  const log = {
+    _id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+    user: { id: userId, name: userName, email: userEmail, role: userRole },
+    action,
+    details,
+    metadata,
+    ip: req ? (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown') : 'system',
+    userAgent: req ? req.headers['user-agent'] : 'system',
+    timestamp: new Date()
+  };
+  activityLogs.unshift(log); // newest first
+  if (activityLogs.length > 1000) activityLogs.pop(); // keep last 1000
+  console.log(`[LOG] ${userRole?.toUpperCase()} ${userName} → ${action}: ${details}`);
+  return log;
+}
 const subjects = [
   { _id: '1', name: 'Data Structures', code: '34251201', department: 'CSE', credits: 4, description: 'Core subject' },
   { _id: '2', name: 'Object Oriented Programming', code: '34251202', department: 'CSE', credits: 4, description: 'Core subject' },
@@ -170,20 +189,27 @@ app.post('/api/auth/login', (req, res) => {
   const user = users.find(u => u.email === email && u.password === password);
   
   if (!user) {
+    logActivity({
+      userId: 'unknown', userName: 'Unknown', userEmail: email,
+      userRole: 'unknown', action: 'LOGIN_FAILED',
+      details: `Failed login attempt for ${email}`, req
+    });
     return res.status(401).json({ message: 'Invalid credentials' });
   }
+
+  logActivity({
+    userId: user.id, userName: user.name, userEmail: user.email,
+    userRole: user.role, action: 'LOGIN',
+    details: `${user.name} logged in as ${user.role}`, req
+  });
 
   res.json({
     message: 'Login successful (Demo Mode)',
     token: 'demo-token-' + user.id,
     user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      department: user.department,
-      rollNumber: user.rollNumber,
-      employeeId: user.employeeId
+      id: user.id, name: user.name, email: user.email,
+      role: user.role, department: user.department,
+      rollNumber: user.rollNumber, employeeId: user.employeeId
     }
   });
 });
@@ -432,6 +458,19 @@ app.post('/api/qr/generate', async (req, res) => {
       expirySeconds: 8,
       geoFenced: !!(lat && lng)
     });
+
+    // Log QR generation (get teacher from auth header)
+    const authHeader = req.headers.authorization;
+    const token2 = authHeader?.split(' ')[1];
+    const teacher = token2 ? users.find(u => 'demo-token-' + u.id === token2) : null;
+    if (teacher) {
+      logActivity({
+        userId: teacher.id, userName: teacher.name, userEmail: teacher.email,
+        userRole: 'teacher', action: 'QR_GENERATED',
+        details: `${teacher.name} generated QR for class ${classData.name}`,
+        metadata: { classId, geoFenced: !!(lat && lng) }, req
+      });
+    }
   } catch (error) {
     res.status(500).json({ message: 'Failed to generate QR code' });
   }
@@ -473,6 +512,16 @@ app.post('/api/attendance/mark', (req, res) => {
   // Get student and class info
   const student = users.find(u => u.id === studentId);
   const classData = classes.find(c => c._id === qrSession.class);
+
+  // Log attendance
+  logActivity({
+    userId: studentId, userName: student?.name || studentId,
+    userEmail: student?.email, userRole: 'student',
+    action: 'ATTENDANCE_MARKED',
+    details: `${student?.name} marked attendance for ${classData?.name || qrSession.class}`,
+    metadata: { classId: qrSession.class, className: classData?.name, location: req.body.location },
+    req
+  });
   
   res.json({
     message: 'Attendance marked successfully!',
@@ -491,16 +540,56 @@ app.get('/api/attendance/live/:sessionId', (req, res) => {
     const student = users.find(u => u.id === a.student);
     return {
       ...a,
-      student: {
-        name: student?.name,
-        rollNumber: student?.rollNumber
-      }
+      student: { name: student?.name, rollNumber: student?.rollNumber }
     };
   });
   
+  res.json({ attendance: attendanceWithDetails, count: attendanceWithDetails.length });
+});
+
+// ─── Activity Log API ─────────────────────────────────────────────────────────
+// Log a frontend action (Google login, page visit, etc.)
+app.post('/api/logs/track', (req, res) => {
+  const { userId, userName, userEmail, userRole, action, details, metadata } = req.body;
+  const log = logActivity({ userId, userName, userEmail, userRole, action, details, metadata, req });
+  res.json({ success: true, log });
+});
+
+// Get all logs (admin only)
+app.get('/api/logs', (req, res) => {
+  const { role, action, limit = 100, page = 1 } = req.query;
+  let filtered = [...activityLogs];
+  if (role) filtered = filtered.filter(l => l.user.role === role);
+  if (action) filtered = filtered.filter(l => l.action === action);
+  const total = filtered.length;
+  const start = (parseInt(page) - 1) * parseInt(limit);
+  const paginated = filtered.slice(start, start + parseInt(limit));
+  res.json({ logs: paginated, total, page: parseInt(page), limit: parseInt(limit) });
+});
+
+// Get logs for a specific user
+app.get('/api/logs/user/:userId', (req, res) => {
+  const userLogs = activityLogs.filter(l => l.user.id === req.params.userId);
+  res.json({ logs: userLogs.slice(0, 50) });
+});
+
+// Get activity summary stats
+app.get('/api/logs/stats', (req, res) => {
+  const today = new Date().toDateString();
+  const todayLogs = activityLogs.filter(l => new Date(l.timestamp).toDateString() === today);
+  
   res.json({
-    attendance: attendanceWithDetails,
-    count: attendanceWithDetails.length
+    total: activityLogs.length,
+    today: todayLogs.length,
+    byAction: activityLogs.reduce((acc, l) => {
+      acc[l.action] = (acc[l.action] || 0) + 1;
+      return acc;
+    }, {}),
+    byRole: activityLogs.reduce((acc, l) => {
+      acc[l.user.role] = (acc[l.user.role] || 0) + 1;
+      return acc;
+    }, {}),
+    recentUsers: [...new Map(activityLogs.slice(0, 20).map(l => [l.user.id, l.user])).values()].slice(0, 10)
   });
 });
 

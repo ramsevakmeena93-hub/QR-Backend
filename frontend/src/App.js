@@ -15,6 +15,7 @@ import QRScanner from './pages/QRScanner';
 import TeacherClassManagement from './pages/TeacherClassManagement';
 import StudentClassView from './pages/StudentClassView';
 import ManualAttendance from './pages/ManualAttendance';
+import ActivityLogDashboard from './pages/ActivityLogDashboard';
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
 
@@ -31,6 +32,10 @@ function App() {
 
                 <Route path="/admin/*" element={
                   <PrivateRoute role="admin"><AdminDashboard /></PrivateRoute>
+                } />
+
+                <Route path="/admin/logs" element={
+                  <PrivateRoute role="admin"><ActivityLogDashboard /></PrivateRoute>
                 } />
 
                 <Route path="/teacher/*" element={
