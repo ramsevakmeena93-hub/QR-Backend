@@ -126,6 +126,8 @@ const Login = () => {
 
           <p className="text-center text-gray-400 text-xs mt-6">
             Developed by <span className="text-blue-500 font-semibold">Ajay Meena</span>
+            <br />
+            Project Partner <span className="text-indigo-500 font-semibold">Mohammad Shafat Ali Khan</span>
           </p>
         </div>
       </div>

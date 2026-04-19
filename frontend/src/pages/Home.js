@@ -295,7 +295,7 @@ const Home = () => {
               © 2026 Madhav Institute of Technology & Science. All rights reserved.
             </p>
             <p className="text-gray-500 text-xs mt-2">
-              Developed with ❤️ by <span className="text-blue-400 font-semibold">Ajay Meena</span>
+              Developed with ❤️ by <span className="text-blue-400 font-semibold">Ajay Meena</span> &amp; <span className="text-indigo-400 font-semibold">Mohammad Shafat Ali Khan</span>
             </p>
           </div>
         </div>

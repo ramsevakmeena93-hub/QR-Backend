@@ -94,6 +94,8 @@ const Sidebar = ({ role }) => {
         <p className="text-xs text-gray-500">
           Developed by<br/>
           <span className="text-blue-400 font-semibold">Ajay Meena</span>
+          <br/>
+          <span className="text-indigo-400 font-semibold">Mohammad Shafat Ali Khan</span>
         </p>
       </div>
     </div>
