@@ -30,8 +30,9 @@ mongoose.connect(process.env.MONGODB_URI)
     console.log('📊 Database:', mongoose.connection.name);
   })
   .catch(err => {
-    console.error('❌ MongoDB Error:', err.message);
-    process.exit(1);
+    console.error('❌ MongoDB Connection Error:', err.message);
+    console.log('⚠️  Server will continue without database (limited functionality)');
+    // Don't exit - keep server running
   });
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
