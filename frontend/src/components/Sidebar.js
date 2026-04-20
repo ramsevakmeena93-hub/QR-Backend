@@ -16,7 +16,6 @@ const Sidebar = ({ role }) => {
           { path: '/admin/students', icon: FiUsers, label: 'Students' },
           { path: '/admin/subjects', icon: FiBook, label: 'Subjects' },
           { path: '/admin/attendance', icon: FiBarChart2, label: 'Attendance' },
-          { path: '/admin/logs', icon: FiBarChart2, label: 'Activity Logs' },
         ];
       case 'teacher':
         return [

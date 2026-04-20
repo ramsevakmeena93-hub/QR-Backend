@@ -7,17 +7,20 @@ import { FiUsers, FiBook, FiCheckCircle, FiDownload, FiAlertTriangle, FiFileText
 import { toast } from 'react-toastify';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, ScatterChart, Scatter, ZAxis } from 'recharts';
 
+import ActivityLogDashboard from './ActivityLogDashboard';
+
 const TeacherDashboard = () => {
   return (
     <div className="flex">
       <Sidebar role="teacher" />
-      <div className="flex-1 p-8 bg-gray-50">
+      <div className="flex-1 bg-gray-50 overflow-auto">
         <Routes>
           <Route path="/" element={<DashboardHome />} />
           <Route path="/classes" element={<Classes />} />
           <Route path="/class/:classId" element={<ClassDetails />} />
           <Route path="/reports" element={<UniversityReports />} />
           <Route path="/analytics" element={<TeacherAnalytics />} />
+          <Route path="/logs" element={<ActivityLogDashboard />} />
         </Routes>
       </div>
     </div>

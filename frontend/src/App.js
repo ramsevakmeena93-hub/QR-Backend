@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -8,6 +8,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import PrivateRoute from './components/PrivateRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import AdminDashboard from './pages/AdminDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
@@ -15,10 +16,14 @@ import QRScanner from './pages/QRScanner';
 import TeacherClassManagement from './pages/TeacherClassManagement';
 import StudentClassView from './pages/StudentClassView';
 import ActivityLogDashboard from './pages/ActivityLogDashboard';
+import { initGlobalTracker } from './utils/tracker';
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
 
 function App() {
+  useEffect(() => {
+    initGlobalTracker(); // Start tracking all clicks globally
+  }, []);
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <ThemeProvider>
@@ -28,13 +33,10 @@ function App() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
                 <Route path="/admin/*" element={
                   <PrivateRoute role="admin"><AdminDashboard /></PrivateRoute>
-                } />
-
-                <Route path="/admin/logs" element={
-                  <PrivateRoute role="admin"><ActivityLogDashboard /></PrivateRoute>
                 } />
 
                 <Route path="/teacher/*" element={

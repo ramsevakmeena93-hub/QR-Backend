@@ -1,146 +1,99 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '../context/AuthContext';
 import ThemeToggle from '../components/ThemeToggle';
 import { toast } from 'react-toastify';
-
-const BRANCH_MAP = {
-  tc: 'CST (Computer Science & Technology)',
-  cs: 'CS (Computer Science)',
-  it: 'IT (Information Technology)',
-  ec: 'EC (Electronics & Communication)',
-  me: 'ME (Mechanical Engineering)',
-  ce: 'CE (Civil Engineering)',
-  ee: 'EE (Electrical Engineering)',
-  bt: 'BT (Biotechnology)',
-};
-
-const FACULTY_EMAILS = ['ramsevakmeena93@gmail.com'];
-const ADMIN_EMAILS = ['am9303386187@gmail.com'];
-const STUDENT_DOMAIN = 'mitsgwl.ac.in';
-
-function parseStudentEmail(email) {
-  const local = email.split('@')[0].toLowerCase();
-  const match = local.match(/^(\d{2})([a-z]+)(\d)([a-z]+)(\d+)$/);
-  if (!match) return null;
-  const [, yearStr, branchCode, section, initials, roll] = match;
-  const admissionYear = 2000 + parseInt(yearStr);
-  const currentYear = new Date().getFullYear();
-  const yearOfStudy = Math.min(currentYear - admissionYear + 1, 4);
-  const yearLabel = ['1st Year', '2nd Year', '3rd Year', '4th Year'][yearOfStudy - 1];
-  const enrollmentNo = `${branchCode.toUpperCase()}${yearStr}O${section}${initials.toUpperCase()}${roll}`;
-  return {
-    admissionYear, branch: BRANCH_MAP[branchCode] || branchCode.toUpperCase(),
-    branchCode: branchCode.toUpperCase(), section, initials: initials.toUpperCase(),
-    roll, enrollmentNo, yearOfStudy, yearLabel,
-  };
-}
-
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
+import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 
 const Login = () => {
-  const { setGoogleUser } = useContext(AuthContext);
+  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleGoogleSuccess = (credentialResponse) => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
     try {
-      const decoded = jwtDecode(credentialResponse.credential);
-      const { email, name, picture } = decoded;
-
-      // Admin check
-      if (ADMIN_EMAILS.includes(email.toLowerCase())) {
-        setGoogleUser({ id: email, name, email, picture, role: 'admin', department: 'Administration', loginMethod: 'google' });
-        toast.success(`Welcome, ${name}! Logged in as Admin.`);
-        navigate('/admin');
-        return;
-      }
-
-      // Faculty check
-      if (FACULTY_EMAILS.includes(email.toLowerCase())) {
-        setGoogleUser({ id: email, name, email, picture, role: 'teacher', department: 'CST', loginMethod: 'google' });
-        toast.success(`Welcome, ${name}! Logged in as Faculty.`);
-        navigate('/teacher');
-        return;
-      }
-
-      // Student check
-      if (email.endsWith(`@${STUDENT_DOMAIN}`)) {
-        const parsed = parseStudentEmail(email);
-        if (!parsed) {
-          toast.error('Could not parse your college email. Contact admin.');
-          return;
-        }
-        setGoogleUser({
-          id: email, name, email, picture, role: 'student',
-          department: parsed.branchCode, enrollmentNo: parsed.enrollmentNo,
-          branch: parsed.branch, branchCode: parsed.branchCode,
-          section: parsed.section, admissionYear: parsed.admissionYear,
-          yearOfStudy: parsed.yearOfStudy, yearLabel: parsed.yearLabel,
-          roll: parsed.roll, loginMethod: 'google',
-        });
-        toast.success(`Welcome, ${name}!`);
-        navigate('/student');
-        return;
-      }
-
-      toast.error(`Access denied. Only @${STUDENT_DOMAIN} students and authorized faculty can login.`);
-    } catch (err) {
-      toast.error('Google login failed. Please try again.');
+      const user = await login(email.trim().toLowerCase(), password);
+      toast.success(`Welcome, ${user.name}!`);
+      navigate(`/${user.role}`);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4 transition-colors duration-300">
-        <div className="absolute top-4 right-4">
-          <ThemeToggle />
+    <div className="min-h-screen w-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 flex items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-sm mx-auto overflow-hidden">
+        {/* Top banner */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 pt-8 pb-10 text-center">
+          <img src="/mits-logo.png" alt="MITS Logo"
+            className="w-16 h-16 object-contain mx-auto mb-3 drop-shadow-lg" />
+          <h1 className="text-white font-bold text-base leading-tight">
+            Madhav Institute of Technology & Science
+          </h1>
+          <p className="text-blue-200 text-xs mt-1">Attendance Management System</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md transition-colors duration-300">
-          {/* Branding */}
-          <div className="text-center mb-8">
-            <img src="/mits-logo.png" alt="MITS Logo"
-              className="w-20 h-20 object-contain mx-auto mb-4 drop-shadow-lg hover:rotate-12 transition-transform duration-300" />
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-              Madhav Institute of Technology & Science
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Attendance Management System</p>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome Back</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Sign in with your college Google account</p>
-          </div>
+        {/* Form */}
+        <div className="px-6 py-8 -mt-4 bg-white dark:bg-gray-900 rounded-t-3xl">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-1">
+            Welcome Back
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm text-center mb-6">
+            Sign in with your college email
+          </p>
 
-          {/* Google Sign-In Only */}
-          <div className="flex justify-center mb-6">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => toast.error('Google Sign-In failed. Please try again.')}
-              useOneTap
-              theme="outline"
-              size="large"
-              width="360"
-              text="signin_with"
-              shape="rectangular"
-            />
-          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+              <div className="relative">
+                <FiMail className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+                <input type="email" required value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="25tc1aj7@mitsgwl.ac.in"
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
+              </div>
+            </div>
 
-          {/* Info Box */}
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
-            <p className="text-sm text-blue-700 dark:text-blue-300 text-center">
-              📧 Students: use <strong>@mitsgwl.ac.in</strong> account<br />
-              👨‍🏫 Faculty: use your authorized Gmail
-            </p>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+              <div className="relative">
+                <FiLock className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+                <input type={showPass ? 'text' : 'password'} required value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
+                <button type="button" onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                  {showPass ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
 
-          <p className="text-center text-gray-400 text-xs mt-6">
+            <button type="submit" disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 mt-2">
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+
+          <p className="text-center text-gray-400 dark:text-gray-500 text-xs mt-6">
             Developed by <span className="text-blue-500 font-semibold">Ajay Meena</span>
-            <br />
-            Project Partner <span className="text-indigo-500 font-semibold">Mohammad Shafat Ali Khan</span>
+            {' & '}
+            <span className="text-indigo-500 font-semibold">Mohammad Shafat Ali Khan</span>
           </p>
         </div>
       </div>
-    </GoogleOAuthProvider>
+    </div>
   );
 };
 
