@@ -236,6 +236,7 @@ app.get('/api/auth/me', authenticate, (req, res) => {
 
 // ─── SUBJECTS ─────────────────────────────────────────────────────────────────
 app.get('/api/subjects', (req, res) => res.json({ subjects }));
+app.get('/api/admin/subjects', (req, res) => res.json({ subjects })); // alias for teacher dashboard
 
 // ─── TEACHER ROUTES ───────────────────────────────────────────────────────────
 app.get('/api/teacher/dashboard', authenticate, async (req, res) => {
