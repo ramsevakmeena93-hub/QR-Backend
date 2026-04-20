@@ -64,6 +64,7 @@ const DashboardHome = () => {
 
   // Calculate insights
   const lowAttendanceSubjects = stats?.attendanceStats.filter(s => parseFloat(s.percentage) < 75) || [];
+  const excellentSubjects = stats?.attendanceStats.filter(s => parseFloat(s.percentage) >= 85) || [];
   const classesNeededFor75 = lowAttendanceSubjects.map(subject => {
     const attended = parseInt(subject.attended);
     const total = parseInt(subject.total);

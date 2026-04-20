@@ -155,12 +155,19 @@ const QRScanner = () => {
       }
 
       // ─── Step 2: Mark attendance ─────────────────────────────────────────
-      const userStr = localStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : null;
+      // Get user from either token-based or Google login
+      const token = localStorage.getItem('token');
+      const googleUser = localStorage.getItem('googleUser');
+      const user = googleUser ? JSON.parse(googleUser) : null;
+
+      // Set auth header if token exists
+      if (token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      }
 
       const response = await axios.post('/api/attendance/mark', {
         token: qrData.token,
-        studentId: user?.id || '3',
+        studentId: user?.id || user?.email,
         location: distanceInfo,
         deviceInfo: { userAgent: navigator.userAgent }
       });

@@ -113,7 +113,11 @@ const generateToken = (user) => jwt.sign(
 
 const authenticate = async (req, res, next) => {
   const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ message: 'No token' });
+  if (!auth?.startsWith('Bearer ')) {
+    // Allow unauthenticated for attendance marking (student ID passed in body)
+    req.user = null;
+    return next();
+  }
   try {
     const decoded = jwt.verify(auth.split(' ')[1], JWT_SECRET);
     req.user = await User.findById(decoded.id).select('-password');
@@ -332,7 +336,32 @@ app.post('/api/qr/generate', authenticate, async (req, res) => {
 // ─── ATTENDANCE ROUTES ────────────────────────────────────────────────────────
 app.post('/api/attendance/mark', authenticate, async (req, res) => {
   try {
-    const { token, location } = req.body;
+    const { token, location, studentId } = req.body;
+
+    // Find student — JWT user OR Google login user (email passed as studentId)
+    let student = req.user;
+    if (!student && studentId) {
+      student = await User.findOne({
+        $or: [
+          { email: studentId.toLowerCase() },
+          { _id: studentId.length === 24 ? studentId : null }
+        ]
+      });
+      // Auto-create student if they logged in via Google but not in DB yet
+      if (!student && studentId.includes('@')) {
+        student = await User.create({
+          name: studentId.split('@')[0],
+          email: studentId.toLowerCase(),
+          password: `google_auto`,
+          role: 'student',
+          department: 'CST'
+        });
+      }
+    }
+
+    if (!student) {
+      return res.status(401).json({ message: 'Student not found. Please login again.' });
+    }
 
     const session = await QRSession.findOne({ token, isActive: true });
     if (!session) return res.status(400).json({ message: 'QR code expired or invalid' });
@@ -342,22 +371,21 @@ app.post('/api/attendance/mark', authenticate, async (req, res) => {
       return res.status(400).json({ message: 'QR code has expired' });
     }
 
-    const existing = await Attendance.findOne({ student: req.user._id, qrSession: session._id });
+    const existing = await Attendance.findOne({ student: student._id, qrSession: session._id });
     if (existing) return res.status(400).json({ message: 'Attendance already marked' });
 
     const record = await Attendance.create({
-      student: req.user._id, class: session.class,
+      student: student._id, class: session.class,
       qrSession: session._id, location, status: 'present'
     });
 
     await QRSession.findByIdAndUpdate(session._id, { $inc: { attendanceCount: 1 } });
-
     const cls = await Class.findById(session.class);
 
     await logActivity({
-      user: { id: req.user._id, name: req.user.name, email: req.user.email, role: req.user.role },
+      user: { id: student._id, name: student.name, email: student.email, role: student.role },
       action: 'ATTENDANCE_MARKED',
-      details: `${req.user.name} marked attendance for ${cls?.name}`,
+      details: `${student.name} marked attendance for ${cls?.name}`,
       metadata: { classId: session.class, location }
     });
 
