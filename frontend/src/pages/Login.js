@@ -9,6 +9,8 @@ import axios from "axios";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 const STUDENT_DOMAIN = "mitsgwl.ac.in";
+const ADMIN_EMAILS = ["iitjeestudeent10@gmail.com", "am9303386187@gmail.com"];
+const FACULTY_EMAILS = ["ramsevakmeena93@gmail.com"];
 const BRANCH_MAP = { tc:"CST",cs:"CS",it:"IT",ec:"EC",me:"ME",ce:"CE",ee:"EE",bt:"BT" };
 
 function parseStudentEmail(email) {
@@ -34,6 +36,7 @@ const Login = () => {
       const { email: gEmail, name, picture, sub } = decoded;
       const emailLower = gEmail.toLowerCase();
 
+      // Try existing account first
       try {
         const user = await login(emailLower, `google_${sub}`);
         toast.success(`Welcome back, ${user.name}!`);
@@ -41,9 +44,18 @@ const Login = () => {
         return;
       } catch {}
 
+      // Determine role
       let role = "student";
       let extra = {};
-      if (emailLower.endsWith(`@${STUDENT_DOMAIN}`)) {
+
+      if (ADMIN_EMAILS.includes(emailLower)) {
+        role = "admin";
+        extra = { department: "Administration" };
+      } else if (FACULTY_EMAILS.includes(emailLower)) {
+        role = "teacher";
+        extra = { department: "CST" };
+      } else if (emailLower.endsWith(`@${STUDENT_DOMAIN}`)) {
+        role = "student";
         const parsed = parseStudentEmail(emailLower);
         if (parsed) extra = { rollNumber: parsed.enrollmentNo, branch: parsed.branch, section: parsed.section, admissionYear: parsed.admissionYear, yearOfStudy: parsed.yearOfStudy, department: parsed.branchCode };
       } else {
