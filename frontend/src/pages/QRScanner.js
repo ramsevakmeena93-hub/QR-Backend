@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jsQR from 'jsqr';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { FiCheckCircle, FiX, FiStar, FiCamera, FiAlertCircle, FiMapPin } from 'react-icons/fi';
+import { FiCheckCircle, FiX, FiStar, FiCamera, FiAlertCircle, FiMapPin, FiRefreshCw } from 'react-icons/fi';
 
-// ─── Geo-fencing: max distance from classroom (meters) ───────────────────────
-const MAX_DISTANCE_METERS = 50; // student must be within 50m of teacher's location
+const MAX_DISTANCE_METERS = 50;
+const MAX_CAMERA_RETRIES = 3;
 
 function getDistanceMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -21,13 +21,16 @@ function getDistanceMeters(lat1, lng1, lat2, lng2) {
 }
 
 const QRScanner = () => {
-  const [scanning, setScanning] = useState(true);
+  // Permission gate: 'prompt' | 'requesting' | 'granted' | 'denied'
+  const [permissionState, setPermissionState] = useState('prompt');
+  const [scanning, setScanning] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [attendanceData, setAttendanceData] = useState(null);
   const [cameraError, setCameraError] = useState(null);
   const [cameraReady, setCameraReady] = useState(false);
-  const [locationStatus, setLocationStatus] = useState('idle'); // idle | checking | ok | denied | far
+  const [retryCount, setRetryCount] = useState(0);
+  const [locationStatus, setLocationStatus] = useState('idle');
   const [distanceInfo, setDistanceInfo] = useState(null);
 
   const videoRef = useRef(null);
@@ -41,37 +44,16 @@ const QRScanner = () => {
     comments: '', isAnonymous: false
   });
 
-  useEffect(() => {
-    if (scanning) startCamera();
-    return () => stopCamera();
-  }, [scanning]);
-
-  const startCamera = async () => {
-    setCameraError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        videoRef.current.onloadedmetadata = () => { setCameraReady(true); scanFrame(); };
-      }
-    } catch (err) {
-      if (err.name === 'NotAllowedError') setCameraError('Camera permission denied. Allow camera access in browser settings.');
-      else if (err.name === 'NotFoundError') setCameraError('No camera found on this device.');
-      else setCameraError('Could not access camera: ' + err.message);
-    }
-  };
-
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
     setCameraReady(false);
-  };
+  }, []);
 
-  const scanFrame = () => {
+  const scanFrame = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
@@ -86,9 +68,79 @@ const QRScanner = () => {
     const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
     if (code?.data) handleScan(code.data);
     else animFrameRef.current = requestAnimationFrame(scanFrame);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startCamera = useCallback(async (attempt = 0) => {
+    setCameraError(null);
+    setCameraReady(false);
+    const constraints = [
+      { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+      { video: { facingMode: 'environment' } },
+      { video: true },
+    ];
+    const constraint = constraints[Math.min(attempt, constraints.length - 1)];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(constraint);
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        videoRef.current.onloadedmetadata = () => {
+          setCameraReady(true);
+          scanFrame();
+        };
+      }
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setPermissionState('denied');
+        setCameraError('Camera permission was denied. Please allow camera access in your browser settings and reload the page.');
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setCameraError('No camera found on this device.');
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        if (attempt < MAX_CAMERA_RETRIES - 1) {
+          setRetryCount(attempt + 1);
+          setTimeout(() => startCamera(attempt + 1), 1000);
+        } else {
+          setCameraError('Camera is in use by another app. Close other apps using the camera and try again.');
+        }
+      } else if (err.name === 'OverconstrainedError') {
+        if (attempt < constraints.length - 1) {
+          startCamera(attempt + 1);
+        } else {
+          setCameraError('Could not start camera. Please try again.');
+        }
+      } else {
+        setCameraError('Could not access camera: ' + err.message);
+      }
+    }
+  }, [scanFrame]);
+
+  useEffect(() => {
+    if (scanning) startCamera(0);
+    return () => stopCamera();
+  }, [scanning, startCamera, stopCamera]);
+
+  // Request camera (and optionally location) permissions, then start scanning
+  const requestPermissionsAndStart = async () => {
+    setPermissionState('requesting');
+    try {
+      // Probe camera permission first
+      const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      testStream.getTracks().forEach(t => t.stop()); // release immediately
+      setPermissionState('granted');
+      setScanning(true);
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setPermissionState('denied');
+      } else {
+        // Some other error — still try to proceed
+        setPermissionState('granted');
+        setScanning(true);
+      }
+    }
   };
 
-  // ─── Get student's current GPS location ──────────────────────────────────
   const getStudentLocation = () => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -116,11 +168,9 @@ const QRScanner = () => {
       let qrData;
       try { qrData = JSON.parse(data); } catch { qrData = { token: data }; }
 
-      // ─── Step 1: Check if QR has classroom location ─────────────────────
       if (qrData.lat && qrData.lng) {
         setLocationStatus('checking');
         toast.info('📍 Verifying your location...', { autoClose: 3000 });
-
         let studentLocation;
         try {
           studentLocation = await getStudentLocation();
@@ -128,42 +178,26 @@ const QRScanner = () => {
           setLocationStatus('denied');
           toast.error(`📍 ${locErr.message}`);
           setScanning(true);
-          startCamera();
           return;
         }
-
         const distance = getDistanceMeters(
-          studentLocation.lat, studentLocation.lng,
-          qrData.lat, qrData.lng
+          studentLocation.lat, studentLocation.lng, qrData.lat, qrData.lng
         );
-
         setDistanceInfo({ distance: Math.round(distance), accuracy: Math.round(studentLocation.accuracy) });
-
         if (distance > MAX_DISTANCE_METERS) {
           setLocationStatus('far');
-          toast.error(
-            `🚫 You are ${Math.round(distance)}m away from the classroom. Must be within ${MAX_DISTANCE_METERS}m.`,
-            { autoClose: 6000 }
-          );
+          toast.error(`🚫 You are ${Math.round(distance)}m away. Must be within ${MAX_DISTANCE_METERS}m.`, { autoClose: 6000 });
           setScanning(true);
-          startCamera();
           return;
         }
-
         setLocationStatus('ok');
-        toast.success(`✅ Location verified! You are ${Math.round(distance)}m from classroom.`, { autoClose: 2000 });
+        toast.success(`✅ Location verified! ${Math.round(distance)}m from classroom.`, { autoClose: 2000 });
       }
 
-      // ─── Step 2: Mark attendance ─────────────────────────────────────────
-      // Get user from either token-based or Google login
       const token = localStorage.getItem('token');
       const googleUser = localStorage.getItem('googleUser');
       const user = googleUser ? JSON.parse(googleUser) : null;
-
-      // Set auth header if token exists
-      if (token) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      }
+      if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       const response = await axios.post('/api/attendance/mark', {
         token: qrData.token,
@@ -176,11 +210,9 @@ const QRScanner = () => {
       setAttendanceData(response.data.attendance);
       toast.success(response.data.message || 'Attendance marked!');
       setTimeout(() => { setSuccess(false); setShowFeedback(true); }, 2000);
-
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to mark attendance');
       setScanning(true);
-      startCamera();
     }
   };
 
@@ -209,6 +241,92 @@ const QRScanner = () => {
     </div>
   );
 
+  // ─── Permission prompt screen ─────────────────────────────────────────────
+  if (permissionState === 'prompt' || permissionState === 'requesting') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
+          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mx-auto mb-5">
+            <FiCamera className="w-10 h-10 text-blue-600 dark:text-blue-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Camera Access Needed</h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+            To scan the attendance QR code, this app needs access to your camera and location.
+          </p>
+
+          <div className="text-left space-y-3 mb-6">
+            <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+              <FiCamera className="text-blue-600 w-5 h-5 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Camera</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Used to scan the QR code shown by your teacher</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
+              <FiMapPin className="text-green-600 w-5 h-5 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Location</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Verifies you are within {MAX_DISTANCE_METERS}m of the classroom</p>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">
+            When your browser asks, tap <strong>"Allow"</strong> for both camera and location.
+          </p>
+
+          <button
+            onClick={requestPermissionsAndStart}
+            disabled={permissionState === 'requesting'}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold text-base hover:shadow-lg transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {permissionState === 'requesting' ? (
+              <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Requesting access...</>
+            ) : (
+              <><FiCamera className="w-5 h-5" /> Allow Camera &amp; Start Scanning</>
+            )}
+          </button>
+
+          <button onClick={() => navigate('/student')} className="mt-3 w-full text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 py-2">
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Permission denied screen ─────────────────────────────────────────────
+  if (permissionState === 'denied') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
+          <div className="w-20 h-20 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mx-auto mb-5">
+            <FiAlertCircle className="w-10 h-10 text-red-600 dark:text-red-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Camera Blocked</h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+            Camera access was denied. Follow these steps to fix it:
+          </p>
+          <ol className="text-left text-sm text-gray-700 dark:text-gray-300 space-y-2 mb-6 list-decimal list-inside">
+            <li>Tap the <strong>lock / info icon</strong> in your browser's address bar</li>
+            <li>Find <strong>Camera</strong> and set it to <strong>Allow</strong></li>
+            <li>Reload this page and try again</li>
+          </ol>
+          <button
+            onClick={() => { setPermissionState('prompt'); setCameraError(null); }}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+          >
+            <FiRefreshCw className="w-5 h-5" /> Try Again
+          </button>
+          <button onClick={() => navigate('/student')} className="mt-3 w-full text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 py-2">
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Main scanner / success / feedback ───────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-lg w-full">
@@ -226,7 +344,14 @@ const QRScanner = () => {
               </button>
             </div>
 
-            {/* Geo-fence status banner */}
+            {/* Instructions banner */}
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+              <p className="text-xs text-blue-700 dark:text-blue-300 text-center">
+                📱 Hold your phone steady &nbsp;|&nbsp; Point at the QR code &nbsp;|&nbsp; Keep well-lit
+              </p>
+            </div>
+
+            {/* Geo-fence status */}
             {locationStatus === 'checking' && (
               <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 rounded-lg flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
@@ -257,17 +382,31 @@ const QRScanner = () => {
                   <FiAlertCircle className="text-red-600 w-5 h-5 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-red-800 dark:text-red-300 font-medium text-sm">{cameraError}</p>
-                    <button onClick={startCamera} className="mt-2 text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">
-                      Try Again
-                    </button>
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={() => startCamera(0)}
+                        className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center gap-1">
+                        <FiRefreshCw className="w-3 h-3" /> Retry
+                      </button>
+                      <button onClick={() => setPermissionState('denied')}
+                        className="text-sm border border-red-400 text-red-700 dark:text-red-300 px-3 py-1 rounded hover:bg-red-50">
+                        Help
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
+            {/* Retry indicator */}
+            {retryCount > 0 && !cameraError && (
+              <div className="mb-3 p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg text-center">
+                <p className="text-xs text-yellow-700 dark:text-yellow-300">Retrying camera... (attempt {retryCount + 1}/{MAX_CAMERA_RETRIES})</p>
+              </div>
+            )}
+
             {/* Camera feed */}
             <div className="relative rounded-xl overflow-hidden bg-black mb-4" style={{ aspectRatio: '4/3' }}>
-              <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
+              <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
               <canvas ref={canvasRef} className="hidden" />
               {cameraReady && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
