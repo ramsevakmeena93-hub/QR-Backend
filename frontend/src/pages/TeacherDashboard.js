@@ -87,25 +87,18 @@ const DashboardHome = () => {
 
 const Classes = () => {
   const [classes, setClasses] = useState([]);
-  const [subjects, setSubjects] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', code: '', subjectId: '', department: '', semester: '', academicYear: ''
+    name: '', code: '', department: 'CST', semester: '2', academicYear: '2025-26'
   });
 
   useEffect(() => {
     fetchClasses();
-    fetchSubjects();
   }, []);
 
   const fetchClasses = async () => {
     const response = await axios.get('/api/teacher/classes');
     setClasses(response.data.classes);
-  };
-
-  const fetchSubjects = async () => {
-    const response = await axios.get('/api/admin/subjects');
-    setSubjects(response.data.subjects);
   };
 
   const handleSubmit = async (e) => {
@@ -114,7 +107,7 @@ const Classes = () => {
       await axios.post('/api/teacher/class', formData);
       toast.success('Class created successfully');
       setShowForm(false);
-      setFormData({ name: '', code: '', subjectId: '', department: '', semester: '', academicYear: '' });
+      setFormData({ name: '', code: '', department: 'CST', semester: '2', academicYear: '2025-26' });
       fetchClasses();
     } catch (error) {
       toast.error('Failed to create class');
@@ -138,7 +131,7 @@ const Classes = () => {
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
             <input
               type="text"
-              placeholder="Class Name"
+              placeholder="Class Name (e.g., Data Structures)"
               required
               className="px-4 py-2 border rounded-lg"
               value={formData.name}
@@ -146,40 +139,11 @@ const Classes = () => {
             />
             <input
               type="text"
-              placeholder="Class Code"
+              placeholder="Class Code (e.g., DS101)"
               required
               className="px-4 py-2 border rounded-lg"
               value={formData.code}
               onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-            />
-            <select
-              required
-              className="px-4 py-2 border rounded-lg"
-              value={formData.subjectId}
-              onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
-            >
-              <option value="">Select Subject</option>
-              {subjects.map((subject) => (
-                <option key={subject._id} value={subject._id}>
-                  {subject.name} ({subject.code})
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              placeholder="Department"
-              required
-              className="px-4 py-2 border rounded-lg"
-              value={formData.department}
-              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-            />
-            <input
-              type="number"
-              placeholder="Semester"
-              required
-              className="px-4 py-2 border rounded-lg"
-              value={formData.semester}
-              onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
             />
             <input
               type="text"

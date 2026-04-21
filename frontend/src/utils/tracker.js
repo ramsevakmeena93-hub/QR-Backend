@@ -13,7 +13,9 @@ const getUser = () => {
 const send = async (action, details, metadata = {}) => {
   try {
     const user = getUser();
-    if (!user) return; // don't log unauthenticated actions
+    if (!user) return;
+    // Only log important actions, skip PAGE_VISIT and CLICK to reduce requests
+    if (action === 'PAGE_VISIT' || action === 'CLICK') return;
     await axios.post('/api/logs/track', {
       userId: user.id || user.email,
       userName: user.name,
@@ -96,13 +98,13 @@ export const initGlobalTracker = () => {
     });
   }, true); // capture phase = catches all clicks
 
-  // Track route changes
+  // Track route changes - check every 5 seconds only
   let lastPath = window.location.pathname;
   const checkRoute = () => {
     if (window.location.pathname !== lastPath) {
       lastPath = window.location.pathname;
-      send('PAGE_VISIT', `Navigated to: ${lastPath}`, { path: lastPath });
+      // Don't send to backend, just update local state
     }
   };
-  setInterval(checkRoute, 500);
+  setInterval(checkRoute, 5000);
 };
